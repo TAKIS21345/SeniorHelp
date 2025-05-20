@@ -14,6 +14,7 @@ import speech_recognition as sr
 from PyPDF2 import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+import difflib
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # Needed for session
@@ -118,7 +119,6 @@ HTML = '''
       document.getElementById('user-question').textContent = formData.get('text_prompt') || '[No text prompt]';
       document.getElementById('ocr-text').textContent = 'Processing...';
       document.getElementById('card-stack').innerHTML = '';
-      document.getElementById('ai-answer').textContent = '';
       // Show spinner while waiting
       let spinner = document.createElement('div');
       spinner.id = 'ai-spinner';
@@ -152,9 +152,10 @@ def get_llm():
 
 def get_prompt():
     template = (
-        """You are a helpful tech assistant for seniors.\n" \
-        "Given the following context (from text, image, document, or voice), answer the user's tech question in a clear, short, step-by-step, and friendly way.\n" \
-        "If the text is unclear or seems like a screenshot, summarize the main points and mention if the text is hard to read.\n" \
+        """You are a helpful tech assistant for seniors.\n"
+        "Given the following context (from text, image, document, or voice), answer the user's tech question in a clear, short, step-by-step, and friendly way.\n"
+        "ALWAYS answer in the following strict format: Each step must start with 'Step 1:', 'Step 2:', etc., with each step on a new line. Do NOT add any introduction, summary, or text before or after the steps. Only output the steps.\n"
+        "If the text is unclear or seems like a screenshot, summarize the main points and mention if the text is hard to read, but still use the step format.\n"
         "\nExtracted context:\n{context}\n\nQuestion: {question}\n"""
     )
     return ChatPromptTemplate.from_template(template)
@@ -181,6 +182,58 @@ def add_question_to_pdf_kb(question):
     c.drawString(72, 800, "User Question:")
     c.setFont("Helvetica", 12)
     c.drawString(72, 780, question)
+    c.save()
+    # Append the new page to the original PDF
+    writer = PdfWriter()
+    for page in reader.pages:
+        writer.add_page(page)
+    with open(temp_pdf_path, 'rb') as f:
+        temp_reader = PdfReader(f)
+        writer.add_page(temp_reader.pages[0])
+    with open(pdf_path, 'wb') as f:
+        writer.write(f)
+    os.remove(temp_pdf_path)
+
+def find_similar_question(existing_questions, new_question, threshold=0.85):
+    """Return the most similar question if above threshold, else None."""
+    matches = difflib.get_close_matches(new_question, existing_questions, n=1, cutoff=threshold)
+    return matches[0] if matches else None
+
+def add_qa_to_pdf_kb(question, answer):
+    question = question.strip()
+    answer = answer.strip()
+    if not question or not answer:
+        return
+    pdf_path = PDF_KB_PATH
+    # Read existing PDF text and collect all questions
+    reader = PdfReader(pdf_path)
+    all_text = " ".join(page.extract_text() or '' for page in reader.pages)
+    # Extract all previous questions (naive: lines starting with 'User Question:')
+    import re
+    existing_questions = re.findall(r'User Question:(.*)', all_text, re.IGNORECASE)
+    existing_questions = [q.strip() for q in existing_questions]
+    # Check for similar question
+    similar = find_similar_question(existing_questions, question)
+    if similar:
+        return  # Don't add duplicate/similar question
+    # Create a temporary PDF with the Q&A
+    temp_pdf_path = os.path.join(os.path.dirname(pdf_path), 'temp_qa.pdf')
+    c = canvas.Canvas(temp_pdf_path, pagesize=A4)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(72, 800, "User Question:")
+    c.setFont("Helvetica", 12)
+    c.drawString(72, 780, question)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(72, 750, "AI Answer:")
+    c.setFont("Helvetica", 12)
+    # Split answer into lines for PDF
+    y = 730
+    for line in answer.split('\n'):
+        if y < 100:
+            c.showPage();
+            y = 800;
+        c.drawString(72, y, line);
+        y -= 18;
     c.save()
     # Append the new page to the original PDF
     writer = PdfWriter()
@@ -251,6 +304,9 @@ def upload_multimodal():
     )
     answer = chain.invoke(text_prompt or "What is in the provided context?")
     session['history'][-1]['ai'] = answer
+    # Add Q&A to PDF KB (after getting answer)
+    if text_prompt:
+        add_qa_to_pdf_kb(text_prompt, answer)
     # Render chat history as HTML
     history_html = "<b>Chat History:</b><br>" + "<br>".join([
         f"<b>You:</b> {h['user']}<br><b>AI:</b> {h.get('ai','')}" for h in session['history']
