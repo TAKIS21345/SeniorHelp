@@ -30,15 +30,15 @@ def load_documents():
 # documents = load_documents() # Call this later
 
 def split_documents(documents):
-    """Splits documents into smaller chunks."""
+    """Splits documents into smaller, finer-grained chunks for better RAG granularity."""
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=300,  # Smaller chunks
+        chunk_overlap=50,  # Less overlap
         length_function=len,
         is_separator_regex=False,
     )
     all_splits = text_splitter.split_documents(documents)
-    print(f"Split into {len(all_splits)} chunks")
+    print(f"Split into {len(all_splits)} chunks (chunk_size=300, overlap=50)")
     return all_splits
 
 # loaded_docs = load_documents()
