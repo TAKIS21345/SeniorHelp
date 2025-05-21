@@ -17,7 +17,10 @@
     "@tailwindcss/forms": "^0.5.7",
     "tailwindcss": "^3.4.1",
     "autoprefixer": "^10.4.17",
-    "postcss": "^8.4.35"
+    "postcss": "^8.4.35",
+    "framer-motion": "^11.0.3",
+    "@botpress/client": "^0.10.1",
+    "react-hot-toast": "^2.4.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.61",
