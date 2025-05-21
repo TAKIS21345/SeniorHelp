@@ -1,13 +1,16 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export function SignUp() {
   const navigate = useNavigate()
   const { signUp } = useAuth()
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setError('') // Clear any previous errors
+    
     const formData = new FormData(e.currentTarget)
     const email = formData.get('email') as string
     const password = formData.get('password') as string
@@ -16,8 +19,14 @@ export function SignUp() {
     try {
       await signUp(email, password, firstName)
       navigate('/dashboard')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error signing up:', error)
+      if (error.message?.includes('User already registered') || 
+          error?.error?.message?.includes('User already registered')) {
+        setError('An account with this email already exists. Please try logging in instead.')
+      } else {
+        setError('An error occurred during sign up. Please try again.')
+      }
     }
   }
 
@@ -25,6 +34,11 @@ export function SignUp() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
         <h2 className="text-2xl font-bold text-center mb-6">Sign Up</h2>
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="firstName" className="block text-gray-700 font-medium mb-2">
@@ -68,6 +82,11 @@ export function SignUp() {
           >
             Create Account
           </button>
+          <div className="mt-4 text-center">
+            <a href="/login" className="text-blue-500 hover:text-blue-600">
+              Already have an account? Log in
+            </a>
+          </div>
         </form>
       </div>
     </div>
