@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
-import type { User } from '@supabase/supabase-js'
+import { createContext, useContext, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 type AuthContextType = {
   user: User | null
@@ -13,40 +13,61 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const navigate = useNavigate()
+  const [user, setUser] = useState<User | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
+    if (isSupabaseConfigured && supabase) {
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null);
+      });
 
-    return () => subscription.unsubscribe()
-  }, [])
+      return () => subscription.unsubscribe();
+    } else {
+      setUser(null);
+      console.warn(
+        'Supabase is not configured. Authentication features are disabled.'
+      );
+    }
+  }, []);
 
   const signUp = async (email: string, password: string) => {
+    if (!isSupabaseConfigured || !supabase) {
+      console.error('Supabase is not configured. Sign up failed.');
+      return;
+    }
     const { error } = await supabase.auth.signUp({
       email,
       password,
-    })
-    if (error) throw error
-    navigate('/dashboard')
-  }
+    });
+    if (error) throw error;
+    navigate('/dashboard');
+  };
 
   const signIn = async (email: string, password: string) => {
+    if (!isSupabaseConfigured || !supabase) {
+      console.error('Supabase is not configured. Sign in failed.');
+      return;
+    }
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
-    })
-    if (error) throw error
-    navigate('/dashboard')
-  }
+    });
+    if (error) throw error;
+    navigate('/dashboard');
+  };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-    navigate('/login')
-  }
+    if (!isSupabaseConfigured || !supabase) {
+      console.error('Supabase is not configured. Sign out failed.');
+      return;
+    }
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    navigate('/login');
+  };
 
   return (
     <AuthContext.Provider value={{ user, signUp, signIn, signOut }}>
