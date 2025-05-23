@@ -1,15 +1,6 @@
 {
-  "name": "project",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
   "dependencies": {
-    "@botpress/client": "^0.1.1",
+    "@botpress/client": "^0.3.1",
     "@supabase/supabase-js": "^2.39.0",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.294.0",
