@@ -3,6 +3,9 @@
     "@botpress/client": "^0.6.0",
     "@botpress/sdk": "^0.6.0"
   },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
   "scripts": {
     "dev": "vite"
   }
