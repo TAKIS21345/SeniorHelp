@@ -4,7 +4,7 @@ import { MessageCircle, Brain, Send } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
-import { Bot } from '@botpress/client'
+import { Client } from '@botpress/client'
 
 interface AIConversation {
   id: string
@@ -13,7 +13,7 @@ interface AIConversation {
   created_at: string
 }
 
-const bot = new Bot({ 
+const client = new Client({ 
   // Add your Botpress credentials here
 })
 
@@ -50,14 +50,17 @@ export function Dashboard() {
 
     setLoading(true)
     try {
-      const response = await bot.sendMessage(message)
+      const response = await client.createConversation({
+        message: message,
+        integration: 'default'
+      })
       
       const { error } = await supabase
         .from('ai_conversations')
         .insert([
           {
             message: message,
-            response: response.text,
+            response: response.message,
             user_id: user?.id
           }
         ])
